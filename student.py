@@ -12,19 +12,19 @@ st.markdown("""
     <style>
     .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; }
     
-    /* Sidebar styling with Logo Space */
+    /* Sidebar styling */
     section[data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 3px solid #facc15;
     }
     
-    /* Navigation Text in Sidebar */
+    /* Navigation Text */
     section[data-testid="stSidebar"] .stRadio label p {
         color: #1e293b !important;
         font-weight: bold !important;
     }
 
-    /* Form Container */
+    /* Form Design */
     [data-testid="stForm"] { 
         background-color: #ffffff !important; 
         padding: 40px !important; 
@@ -34,7 +34,7 @@ st.markdown("""
     }
     [data-testid="stForm"] label p { color: #1e293b !important; font-weight: 700 !important; }
     
-    /* Premium Buttons */
+    /* Premium Gold Buttons */
     div.stButton > button { 
         background: linear-gradient(90deg, #facc15 0%, #eab308 100%) !important; 
         color: #1e293b !important; font-weight: 800 !important; 
@@ -49,14 +49,17 @@ st.markdown("""
 def get_db_connection():
     try:
         return mysql.connector.connect(
-            host="localhost", user="root", password="root", database="student_portal"
+            host="localhost", 
+            user="root", 
+            password="root", 
+            database="student_portal"
         )
     except Exception:
         return None
 
-# --- 4. SIDEBAR LOGO & NAV ---
-# Official Anurag University Logo link
-st.sidebar.image("https://anurag.edu.in/wp-content/uploads/2020/05/logo.png", width=250)
+# --- 4. SIDEBAR LOGO & NAVIGATION ---
+# Anurag University Logo
+st.sidebar.image("https://anurag.edu.in/wp-content/uploads/2020/05/logo.png", use_container_width=True)
 st.sidebar.markdown("<hr style='border:1px solid #facc15'>", unsafe_allow_html=True)
 menu = ["Home", "Student Enrollment", "Daily Attendance", "Marks Entry", "Academic Reports"]
 choice = st.sidebar.radio("CAMPUS NAV", menu)
@@ -64,52 +67,54 @@ choice = st.sidebar.radio("CAMPUS NAV", menu)
 conn = get_db_connection()
 
 if conn is None:
-    st.error("❌ Database Connection Failed! Ensure MySQL is running with password 'root'.")
+    st.error("❌ Database Connection Failed! Ensure MySQL is running with password 'root' and database 'student_portal' exists.")
 else:
-    # --- HOME PAGE ---
+    # --- 1. HOME PAGE ---
     if choice == "Home":
         st.markdown("<h1>🏛️ ANURAG UNIVERSITY DASHBOARD</h1>", unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         with col1:
-            # Campus View
-            st.image("https://anurag.edu.in/wp-content/uploads/2020/05/slide-1.jpg", caption="Main Campus")
-            st.markdown("### Welcome to the Academic Portal")
-            st.write("Authorized access for managing B.Tech student records, lecture attendance, and internal assessment analytics.")
+            st.image("https://anurag.edu.in/wp-content/uploads/2020/05/slide-1.jpg", caption="Anurag University Campus")
+            st.markdown("### Academic Excellence")
+            st.write("Welcome to the B.Tech Management System. Authorized staff can manage student enrollment, attendance, and internal assessments.")
         
         with col2:
-            # Students/Research View
-            st.image("https://anurag.edu.in/wp-content/uploads/2021/04/research-1.jpg", caption="Excellence in Engineering")
-            st.markdown("### Quick Statistics")
-            df_count = pd.read_sql("SELECT COUNT(*) as total FROM students", conn)
-            st.metric("Total Enrolled Students", df_count['total'][0])
+            st.image("https://anurag.edu.in/wp-content/uploads/2021/04/research-1.jpg", caption="Innovation & Research")
+            st.markdown("### Current Enrollment Status")
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM students")
+            total_students = cursor.fetchone()[0]
+            st.metric("Total Students Registered", total_students)
 
-    # --- STUDENT ENROLLMENT ---
+    # --- 2. STUDENT ENROLLMENT ---
     elif choice == "Student Enrollment":
         st.subheader("📝 B.Tech Admission Form")
         with st.form("enroll_form"):
-            roll = st.text_input("Hall Ticket No (Digits only)")
+            roll = st.text_input("Hall Ticket No (Numbers only)")
             name = st.text_input("Student Name (Single Perfect Word)")
-            sem = st.text_input("Current Semester")
+            sem = st.text_input("Current Semester (e.g. Sem 3)")
             
             if st.form_submit_button("ENROLL STUDENT"):
                 if not roll.isdigit():
-                    st.error("❌ Invalid Roll No: Use numeric digits only!")
+                    st.error("❌ Invalid Roll No: Please enter numeric digits only!")
                 elif len(name.split()) > 1 or not name.isalpha():
-                    st.error("❌ Invalid Name: Provide a single word (A-Z only)!")
+                    st.error("❌ Invalid Name: Provide a single name perfectly (A-Z only)!")
+                elif not sem:
+                    st.error("❌ Semester field is mandatory!")
                 else:
                     cursor = conn.cursor()
                     try:
                         cursor.execute("INSERT INTO students (roll_no, name, class) VALUES (%s, %s, %s)", (roll, name, sem))
                         conn.commit()
-                        st.success(f"✅ Student {name} Enrolled!")
+                        st.success(f"✅ B.Tech Student {name} Enrolled Successfully!")
                     except mysql.connector.Error as err:
                         if err.errno == 1062:
-                            st.error(f"❌ Error: Hall Ticket '{roll}' is already registered.")
+                            st.error(f"❌ Error: Hall Ticket No '{roll}' is already in use!")
                         else:
                             st.error(f"❌ Database Error: {err}")
 
-    # --- DAILY ATTENDANCE ---
+    # --- 3. DAILY ATTENDANCE ---
     elif choice == "Daily Attendance":
         st.subheader("📅 Lecture Attendance Logger")
         df = pd.read_sql("SELECT id, roll_no, name FROM students", conn)
@@ -119,42 +124,46 @@ else:
                 records = []
                 for _, row in df.iterrows():
                     c1, c2 = st.columns([3, 1])
-                    c1.markdown(f"<span style='color:#1e293b'>**{row['roll_no']}** | {row['name']}</span>", unsafe_allow_html=True)
+                    c1.markdown(f"<span style='color:black'>**{row['roll_no']}** | {row['name']}</span>", unsafe_allow_html=True)
                     status = c2.radio("Status", ["Present", "Absent"], key=row['id'], horizontal=True)
                     records.append((row['id'], att_date, status))
-                if st.form_submit_button("SYNC ATTENDANCE"):
+                
+                if st.form_submit_button("SAVE ATTENDANCE"):
                     cursor = conn.cursor()
                     cursor.executemany("INSERT INTO attendance (student_id, date, status) VALUES (%s, %s, %s)", records)
                     conn.commit()
-                    st.success("✅ Attendance Synchronized!")
+                    st.success("✅ Attendance Synchronized with Database!")
         else:
-            st.info("No students found.")
+            st.info("No students enrolled yet.")
 
-    # --- MARKS ENTRY ---
+    # --- 4. MARKS ENTRY ---
     elif choice == "Marks Entry":
         st.subheader("📊 Course Internal Marks")
         df = pd.read_sql("SELECT id, name FROM students", conn)
         if not df.empty:
-            with st.form("marks_entry"):
+            with st.form("marks_entry_form"):
                 s_id = st.selectbox("Select Student", df['id'], format_func=lambda x: df[df.id==x].name.values[0])
-                subject = st.text_input("Course Name (Text only)")
-                mks = st.number_input("Score", 0, 100)
-                if st.form_submit_button("SAVE MARKS"):
+                subject = st.text_input("Course Name (Characters only)")
+                mks = st.number_input("Assessment Score", 0, 100)
+                
+                if st.form_submit_button("COMMIT MARKS"):
                     if not re.match("^[a-zA-Z\s]+$", subject):
-                        st.error("❌ Error: Course name must be text only!")
+                        st.error("❌ Invalid Course Name: Numbers are not allowed!")
                     else:
                         cursor = conn.cursor()
                         cursor.execute("INSERT INTO marks (student_id, subject, marks) VALUES (%s, %s, %s)", (s_id, subject, mks))
                         conn.commit()
-                        st.success("✅ Marks recorded!")
+                        st.success("✅ Internal marks recorded successfully!")
+        else:
+            st.info("Enroll students before entering marks.")
 
-    # --- ACADEMIC REPORTS ---
+    # --- 5. ACADEMIC REPORTS ---
     elif choice == "Academic Reports":
-        st.subheader("📈 Campus Performance Dashboard")
+        st.subheader("📈 Campus Performance Analytics")
         query = """
-            SELECT s.roll_no, s.name, s.class as Semester, 
+            SELECT s.roll_no as HallTicket, s.name as StudentName, s.class as Semester, 
             AVG(m.marks) as Avg_GPA,
-            (COUNT(CASE WHEN a.status = 'Present' THEN 1 END) / NULLIF(COUNT(a.id), 0)) * 100 as Att_Pct
+            (COUNT(CASE WHEN a.status = 'Present' THEN 1 END) / NULLIF(COUNT(a.id), 0)) * 100 as Att_Percentage
             FROM students s 
             LEFT JOIN marks m ON s.id = m.student_id 
             LEFT JOIN attendance a ON s.id = a.student_id
@@ -163,7 +172,10 @@ else:
         report = pd.read_sql(query, conn)
         if not report.empty:
             report['Result'] = report['Avg_GPA'].apply(lambda x: '✅ PASS' if x >= 40 else '❌ FAIL')
-            st.dataframe(report.style.format({"Att_Pct": "{:.2f}%"}), use_container_width=True)
-            st.bar_chart(report.set_index('name')['Avg_GPA'])
+            st.dataframe(report.style.format({"Att_Percentage": "{:.2f}%"}), use_container_width=True)
+            st.divider()
+            st.bar_chart(report.set_index('StudentName')['Avg_GPA'])
+        else:
+            st.info("No records available to generate reports.")
 
     conn.close()
